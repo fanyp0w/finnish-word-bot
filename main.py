@@ -6,7 +6,6 @@ BOT_TOKEN = os.environ["BOT_TOKEN"]
 CHAT_ID = os.environ["CHAT_ID"]
 
 def get_random_finnish_word():
-    # Собираем URL через join, чтобы при копировании не пропадали слэши
     parts = [
         "https:/",
         "raw." + "githubusercontent." + "com",
@@ -23,9 +22,14 @@ def get_random_finnish_word():
     resp = requests.get(words_url, timeout=15)
     resp.raise_for_status()
     
-    # Берем топ-2000 самых частых слов длиннее 2 букв
+    # Исправлено: берем первое слово из строки (line.split()[0]) и проверяем, что оно длиннее 2 букв
     lines = resp.text.splitlines()[:2000]
-    words = [line.split() for line in lines if len(line.split()) > 2]
+    words = []
+    for line in lines:
+        items = line.split()
+        if items and len(items[0]) > 2:
+            words.append(items[0])
+            
     chosen_word = random.choice(words)
     
     # Получаем перевод через MyMemory API
