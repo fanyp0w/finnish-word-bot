@@ -6,25 +6,27 @@ BOT_TOKEN = os.environ["BOT_TOKEN"]
 CHAT_ID = os.environ["CHAT_ID"]
 
 def get_random_finnish_word():
-    # 1. Берем список из 1000+ самых частых финских слов из открытого репозитория на GitHub
-    words_url = "https://githubusercontent.com"
+    # Собираем ссылку из частей, чтобы она не обрезалась при копировании
+    words_url = (
+        "https://githubusercontent.com"
+        "hermitdave/FrequencyWords/master/content/2018/fi/fi_50k.txt"
+    )
     resp = requests.get(words_url, timeout=15)
     resp.raise_for_status()
     
-    # Берем топ-2000 самых полезных слов (отбрасываем слишком короткие обрывки)
+    # Берем топ-2000 самых частых слов длиннее 2 букв
     lines = resp.text.splitlines()[:2000]
     words = [line.split()[0] for line in lines if len(line.split()[0]) > 2]
     chosen_word = random.choice(words)
     
-    # 2. Получаем перевод через открытый API MyMemory (не блокирует GitHub Actions)
+    # Получаем перевод через MyMemory API
     trans_url = "https://translated.net"
     params = {
         "q": chosen_word,
-        "langpair": "fi|ru" # Можно поменять на "fi|en" для перевода на английский
+        "langpair": "fi|ru"
     }
     trans_resp = requests.get(trans_url, params=params, timeout=15).json()
     
-    # Собираем основной перевод и альтернативные варианты
     main_translation = trans_resp["responseData"]["translatedText"]
     matches = trans_resp.get("matches", [])
     
@@ -36,7 +38,7 @@ def get_random_finnish_word():
         if len(extra) >= 2:
             break
             
-    meaning = f"• **{main_translation}**"
+    meaning = f"• *{main_translation}*"
     if extra:
         meaning += "\n• " + "\n• ".join(extra)
         
