@@ -1,0 +1,30 @@
+name: Daily Finnish Word
+
+on:
+  schedule:
+    # Запуск каждый день в 06:00 UTC (это 09:00 по Москве)
+    - cron: '0 6 * * *'
+  # Позволяет запускать скрипт вручную кнопкой для проверки
+  workflow_dispatch:
+
+jobs:
+  send-word:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Скачиваем код репозитория
+        uses: actions/checkout@v4
+
+      - name: Устанавливаем Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Устанавливаем библиотеки
+        run: pip install -r requirements.txt
+
+      - name: Запускаем бота
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: python main.py
