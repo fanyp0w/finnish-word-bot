@@ -27,8 +27,10 @@ def get_random_finnish_word():
     words = []
     for line in lines:
         items = line.split()
-        if items and len(items) > 2:
-            words.append(items)
+        if items:
+            first_word = items.pop(0)
+            if len(first_word) > 2:
+                words.append(first_word)
             
     chosen_word = random.choice(words)
     
@@ -46,7 +48,6 @@ def get_random_finnish_word():
     extra = []
     for m in matches:
         t = m.get("translation", "").strip()
-        # Берем только короткие варианты (не длиннее 3 слов), чтобы отсеять длинные предложения
         if (
             t 
             and len(t.split()) <= 3 
