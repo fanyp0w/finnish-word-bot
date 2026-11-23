@@ -6,21 +6,30 @@ BOT_TOKEN = os.environ["BOT_TOKEN"]
 CHAT_ID = os.environ["CHAT_ID"]
 
 def get_random_finnish_word():
-    # Собираем ссылку из частей, чтобы она не обрезалась при копировании
-    words_url = (
-        "https://githubusercontent.com"
-        "hermitdave/FrequencyWords/master/content/2018/fi/fi_50k.txt"
-    )
+    # Собираем URL через join, чтобы при копировании не пропадали слэши
+    parts = [
+        "https:/",
+        "raw." + "githubusercontent." + "com",
+        "hermitdave",
+        "FrequencyWords",
+        "master",
+        "content",
+        "2018",
+        "fi",
+        "fi_50k.txt"
+    ]
+    words_url = "/".join(parts)
+    
     resp = requests.get(words_url, timeout=15)
     resp.raise_for_status()
     
     # Берем топ-2000 самых частых слов длиннее 2 букв
     lines = resp.text.splitlines()[:2000]
-    words = [line.split()[0] for line in lines if len(line.split()[0]) > 2]
+    words = [line.split() for line in lines if len(line.split()) > 2]
     chosen_word = random.choice(words)
     
     # Получаем перевод через MyMemory API
-    trans_url = "https://translated.net"
+    trans_url = "https://" + "api.mymemory.translated.net" + "/get"
     params = {
         "q": chosen_word,
         "langpair": "fi|ru"
@@ -42,7 +51,7 @@ def get_random_finnish_word():
     if extra:
         meaning += "\n• " + "\n• ".join(extra)
         
-    dict_url = f"https://wiktionary.org{chosen_word}#Finnish"
+    dict_url = "https://" + "en.wiktionary.org" + f"/wiki/{chosen_word}#Finnish"
     return chosen_word, meaning, dict_url
 
 def send_telegram_message(word, meaning, url):
@@ -51,7 +60,7 @@ def send_telegram_message(word, meaning, url):
         f"{meaning}\n\n"
         f"📖 [Примеры и формы в словаре]({url})"
     )
-    tg_url = f"https://telegram.org{BOT_TOKEN}/sendMessage"
+    tg_url = "https://" + "api.telegram.org" + f"/bot{BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": CHAT_ID,
         "text": text,
