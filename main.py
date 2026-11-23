@@ -1,62 +1,53 @@
 import os
 import random
 import requests
-from bs4 import BeautifulSoup
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 CHAT_ID = os.environ["CHAT_ID"]
 
-# Используем стандартный User-Agent браузера, чтобы серверы не блокировали GitHub Actions
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Accept": "application/json"
-}
-
 def get_random_finnish_word():
-    api_url = "https://wiktionary.org"
-    params = {
-        "action": "query",
-        "list": "categorymembers",
-        "cmtitle": "Category:Finnish_lemmas",
-        "cmlimit": 500,
-        "format": "json"
-    }
+    # 1. Берем список из 1000+ самых частых финских слов из открытого репозитория на GitHub
+    words_url = "https://githubusercontent.com"
+    resp = requests.get(words_url, timeout=15)
+    resp.raise_for_status()
     
-    resp = requests.get(api_url, params=params, headers=HEADERS, timeout=15)
-    
-    # Проверяем, что сервер ответил успешно, иначе выводим причину в лог
-    if resp.status_code != 200:
-        raise RuntimeError(f"Wiktionary API вернул код {resp.status_code}: {resp.text[:200]}")
-        
-    data = resp.json()
-    words = [item["title"] for item in data["query"]["categorymembers"] if ":" not in item["title"]]
+    # Берем топ-2000 самых полезных слов (отбрасываем слишком короткие обрывки)
+    lines = resp.text.splitlines()[:2000]
+    words = [line.split()[0] for line in lines if len(line.split()[0]) > 2]
     chosen_word = random.choice(words)
     
-    # Загружаем страницу слова
-    page_url = f"https://wiktionary.org{chosen_word}"
-    page_headers = {"User-Agent": HEADERS["User-Agent"]}
-    page_resp = requests.get(page_url, headers=page_headers, timeout=15)
-    soup = BeautifulSoup(page_resp.text, "html.parser")
+    # 2. Получаем перевод через открытый API MyMemory (не блокирует GitHub Actions)
+    trans_url = "https://translated.net"
+    params = {
+        "q": chosen_word,
+        "langpair": "fi|ru" # Можно поменять на "fi|en" для перевода на английский
+    }
+    trans_resp = requests.get(trans_url, params=params, timeout=15).json()
     
-    definitions = []
-    finnish_section = soup.find(id="Finnish")
-    if finnish_section:
-        ol_tag = finnish_section.find_next("ol")
-        if ol_tag:
-            for li in ol_tag.find_all("li", recursive=False)[:3]:
-                # Берем первую строку определения без вложенных примеров
-                text = li.get_text().split("\n")[0].strip()
-                if text:
-                    definitions.append(f"• {text}")
-                    
-    meaning = "\n".join(definitions) if definitions else "Перевод не найден, посмотрите по ссылке ниже."
-    return chosen_word, meaning, page_url
+    # Собираем основной перевод и альтернативные варианты
+    main_translation = trans_resp["responseData"]["translatedText"]
+    matches = trans_resp.get("matches", [])
+    
+    extra = []
+    for m in matches:
+        t = m.get("translation", "").strip()
+        if t and t.lower() != main_translation.lower() and t not in extra:
+            extra.append(t)
+        if len(extra) >= 2:
+            break
+            
+    meaning = f"• **{main_translation}**"
+    if extra:
+        meaning += "\n• " + "\n• ".join(extra)
+        
+    dict_url = f"https://wiktionary.org{chosen_word}#Finnish"
+    return chosen_word, meaning, dict_url
 
 def send_telegram_message(word, meaning, url):
     text = (
         f"🇫🇮 *Päivän sana: {word}*\n\n"
         f"{meaning}\n\n"
-        f"📖 [Открыть в словаре]({url})"
+        f"📖 [Примеры и формы в словаре]({url})"
     )
     tg_url = f"https://telegram.org{BOT_TOKEN}/sendMessage"
     payload = {
@@ -66,8 +57,7 @@ def send_telegram_message(word, meaning, url):
         "disable_web_page_preview": True
     }
     res = requests.post(tg_url, json=payload, timeout=15)
-    if res.status_code != 200:
-        print(f"Ошибка Telegram API: {res.text}")
+    res.raise_for_status()
 
 if __name__ == "__main__":
     word, meaning, url = get_random_finnish_word()
