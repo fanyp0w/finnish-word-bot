@@ -3,7 +3,7 @@ name: Daily Finnish Word
 on:
   schedule:
     # Запуск каждый день в 06:00 UTC (это 09:00 по Москве)
-    - cron: '0 6 * * *'
+    - cron: '37 6 * * *'
   # Позволяет запускать скрипт вручную кнопкой для проверки
   workflow_dispatch:
 
